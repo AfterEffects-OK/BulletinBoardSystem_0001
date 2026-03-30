@@ -20,16 +20,6 @@
             padding-bottom: env(safe-area-inset-bottom);
         }
 
-        .gallery-grid { 
-            display: grid; 
-            gap: 0.5rem; 
-            transition: all 0.3s ease; 
-        }
-
-        @media (min-width: 640px) {
-            .gallery-grid { gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
-        }
-
         .loading-overlay { 
             position: fixed; 
             inset: 0; 
@@ -43,6 +33,12 @@
 
         .fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* アイコンが確実に白く、太く見えるように調整 */
+        .fab-icon {
+            stroke: white !important;
+            stroke-width: 3px !important;
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-900 pb-20">
@@ -88,6 +84,7 @@
 
     <main class="max-w-[1600px] mx-auto px-2 py-4 sm:px-4">
         <section id="upload-section" class="mb-6 hidden fade-in">
+            <!-- 投稿フォームの内容（省略なし） -->
             <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden max-w-2xl mx-auto">
                 <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
                     <h2 class="font-bold flex items-center gap-2 text-slate-800"><i data-lucide="camera" class="w-5 h-5 text-indigo-600"></i> 新規投稿</h2>
@@ -105,7 +102,6 @@
                                 <i data-lucide="image-plus" class="w-6 h-6 text-indigo-500"></i>
                             </div>
                             <p class="text-sm font-bold text-slate-700">写真を撮る・選ぶ</p>
-                            <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">Tap to open camera/gallery</p>
                         </div>
                     </div>
                     
@@ -143,9 +139,9 @@
         </section>
     </main>
 
-    <!-- Floating Action Button for Mobile -->
+    <!-- Floating Action Button: アイコンを確実に表示するように修正 -->
     <button id="mobile-fab" onclick="toggleUploadSection()" class="hidden fixed bottom-6 right-6 w-16 h-16 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition-transform">
-        <i data-lucide="plus" class="w-8 h-8"></i>
+        <i data-lucide="plus" class="fab-icon w-10 h-10 text-white"></i>
     </button>
 
     <div id="lightbox" class="fixed inset-0 bg-black z-50 hidden flex flex-col items-center justify-center">
@@ -162,38 +158,33 @@
     </div>
 
     <script>
-        // 【重要】ここにデプロイしたGASのウェブアプリURLを貼り付けてください
         const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz5lJlz9EU5b2rdfkWgCx6fPgLTcFJ1-5zcMu2rsDhwulaqAW0JLxHMp9sWP0CE3Hj1/exec'; 
 
         let currentUser = localStorage.getItem('gallery_user') || null;
         let selectedFile = null;
 
         window.onload = function() {
-            // アイコンの初期化を確実に実行
             initIcons();
-            
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('start-date').value = today;
-            
-            if (currentUser) {
-                checkPermission(currentUser);
-            } else {
-                showLoginModal(true);
-            }
-            
+            if (currentUser) { checkPermission(currentUser); } else { showLoginModal(true); }
             initEventListeners();
         };
 
-        // Lucideアイコンのリフレッシュ用
         function initIcons() {
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
+                // さらに確実にスタイルを適用
+                document.querySelectorAll('.fab-icon').forEach(icon => {
+                    icon.style.stroke = "white";
+                    icon.style.strokeWidth = "3px";
+                });
             }
         }
 
         function showLoginModal(show) {
             document.getElementById('login-modal').classList.toggle('hidden', !show);
-            initIcons();
+            setTimeout(initIcons, 100);
         }
 
         async function handleLogin() {
@@ -209,7 +200,6 @@
             try {
                 const res = await fetch(`${GAS_WEB_APP_URL}?action=getWhitelist`);
                 const whitelist = await res.json();
-                
                 if (whitelist.includes(userId)) {
                     currentUser = userId;
                     localStorage.setItem('gallery_user', userId);
@@ -217,15 +207,11 @@
                     document.getElementById('display-user-name').textContent = `@${userId}`;
                     showLoginModal(false);
                     loadPosts();
-                    // FABが表示された後にもう一度アイコンを初期化
-                    initIcons();
+                    setTimeout(initIcons, 200);
                 } else {
                     showMessage('アクセス権限がありません', 'error');
-                    localStorage.removeItem('gallery_user');
                 }
-            } catch (err) {
-                showMessage('認証エラーが発生しました', 'error');
-            }
+            } catch (err) { showMessage('認証エラー', 'error'); }
         }
 
         function logout() {
@@ -240,7 +226,7 @@
             section.classList.toggle('hidden');
             if (!section.classList.contains('hidden')) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-                initIcons(); // セクション内アイコンの初期化
+                setTimeout(initIcons, 100);
             }
         }
 
@@ -262,7 +248,7 @@
                 document.getElementById('image-preview').src = e.target.result;
                 document.getElementById('preview-container').classList.remove('hidden');
                 document.getElementById('drop-content').classList.add('hidden');
-                initIcons();
+                setTimeout(initIcons, 100);
             };
             reader.readAsDataURL(file);
         }
@@ -274,39 +260,27 @@
             document.getElementById('preview-container').classList.add('hidden');
             document.getElementById('drop-content').classList.remove('hidden');
             document.getElementById('file-input').value = "";
-            initIcons();
+            setTimeout(initIcons, 100);
         }
 
         async function handleSubmit() {
             const comment = document.getElementById('comment-input').value.trim();
             const startDate = document.getElementById('start-date').value;
             const endDate = document.getElementById('end-date').value;
-
             if (!selectedFile || !comment || !startDate) return showMessage('未入力の項目があります', 'error');
-
             setLoading(true);
             const post = {
-                id: crypto.randomUUID(),
-                userName: currentUser,
-                comment,
+                id: crypto.randomUUID(), userName: currentUser, comment,
                 imageData: document.getElementById('image-preview').src,
-                timestamp: Date.now(),
-                likes: 0,
-                startDate,
-                endDate: endDate || '9999-12-31'
+                timestamp: Date.now(), likes: 0, startDate, endDate: endDate || '9999-12-31'
             };
-
             try {
                 const res = await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'add', post }) });
                 const result = await res.json();
                 if (result.status === 'success') {
                     showMessage('投稿が完了しました', 'success');
-                    resetForm();
-                    toggleUploadSection();
-                    loadPosts();
-                } else {
-                    showMessage(result.message, 'error');
-                }
+                    resetForm(); toggleUploadSection(); loadPosts();
+                } else { showMessage(result.message, 'error'); }
             } catch (err) { showMessage('通信エラー', 'error'); }
             finally { setLoading(false); }
         }
@@ -341,7 +315,6 @@
             grid.innerHTML = "";
             if (posts.length === 0) { emptyState.classList.remove('hidden'); return; }
             emptyState.classList.add('hidden');
-
             posts.forEach(post => {
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col group active:scale-95 transition-all h-fit fade-in";
@@ -365,20 +338,11 @@
                 `;
                 grid.appendChild(card);
             });
-            initIcons();
+            setTimeout(initIcons, 100);
         }
 
-        async function handleLike(id) {
-            try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'like', id }) }); loadPosts(); } catch (err) {}
-        }
-
-        async function deletePost(id) {
-            if (confirm('この投稿を削除しますか？')) {
-                setLoading(true);
-                try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', id }) }); loadPosts(); } catch (err) {}
-                finally { setLoading(false); }
-            }
-        }
+        async function handleLike(id) { try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'like', id }) }); loadPosts(); } catch (err) {} }
+        async function deletePost(id) { if (confirm('この投稿を削除しますか？')) { setLoading(true); try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', id }) }); loadPosts(); } catch (err) {} finally { setLoading(false); } } }
 
         window.openLightbox = (post) => {
             const lb = document.getElementById('lightbox');
@@ -387,14 +351,9 @@
             document.getElementById('lightbox-comment').textContent = post.comment;
             lb.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            initIcons();
+            setTimeout(initIcons, 100);
         };
-
-        window.closeLightbox = () => {
-            document.getElementById('lightbox').classList.add('hidden');
-            document.body.style.overflow = '';
-        };
-
+        window.closeLightbox = () => { document.getElementById('lightbox').classList.add('hidden'); document.body.style.overflow = ''; };
         function setLoading(isLoading) { document.getElementById('global-loader').classList.toggle('hidden', !isLoading); }
         function showMessage(text, type) {
             const box = document.createElement('div');
