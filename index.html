@@ -13,7 +13,6 @@
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior-y: contain;
         }
-        /* ドロップ時の強調スタイル */
         .drop-zone--over { 
             border-color: #6366f1 !important; 
             background-color: #f5f3ff !important;
@@ -148,12 +147,15 @@
 
     <!-- Lightbox -->
     <div id="lightbox" class="fixed inset-0 bg-black/95 z-[100] hidden flex flex-col items-center justify-center transition-all">
-        <!-- 閉じるボタン: z-indexを最前面にし、iタグに確実にアイコンが描画されるように調整 -->
-        <button onclick="closeLightbox()" class="absolute top-6 right-6 text-white bg-white/20 hover:bg-white/30 p-4 rounded-full z-[110] backdrop-blur-md transition-colors active:scale-90 flex items-center justify-center">
-            <i data-lucide="x" class="w-8 h-8 pointer-events-none"></i>
+        <!-- 閉じるボタン: Lucideに依存せずインラインSVGで確実に表示 -->
+        <button onclick="closeLightbox()" class="absolute top-6 right-6 text-white bg-white/20 hover:bg-white/30 p-4 rounded-full z-[110] backdrop-blur-md transition-colors active:scale-90 flex items-center justify-center overflow-hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
         </button>
         
-        <div class="w-full h-full flex flex-col items-center justify-center p-4" onclick="closeLightbox()">
+        <div class="w-full h-full flex flex-col items-center justify-center p-4 cursor-pointer" onclick="closeLightbox()">
             <img id="lightbox-img" src="" class="max-w-full max-h-[75vh] object-contain shadow-2xl pointer-events-none" alt="Full size">
             <div class="mt-8 w-full max-w-xl px-6 text-center pointer-events-none">
                 <span id="lightbox-user" class="text-indigo-400 font-black text-sm uppercase tracking-widest"></span>
@@ -414,11 +416,7 @@
             document.getElementById('lightbox-comment').textContent = post.comment;
             lb.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            
-            // アイコン描画の安定化
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+            initIcons();
         };
         
         window.closeLightbox = () => { 
