@@ -146,11 +146,11 @@
         </svg>
     </button>
 
-    <!-- Lightbox: 背景クリックでも閉じられるように修正 -->
+    <!-- Lightbox -->
     <div id="lightbox" class="fixed inset-0 bg-black/95 z-[100] hidden flex flex-col items-center justify-center transition-all">
-        <!-- 閉じるボタン: z-indexを最前面にし、タッチしやすく拡大 -->
-        <button onclick="closeLightbox()" class="absolute top-6 right-6 text-white bg-white/20 hover:bg-white/30 p-4 rounded-full z-[110] backdrop-blur-md transition-colors active:scale-90">
-            <i data-lucide="x" class="w-8 h-8"></i>
+        <!-- 閉じるボタン: z-indexを最前面にし、iタグに確実にアイコンが描画されるように調整 -->
+        <button onclick="closeLightbox()" class="absolute top-6 right-6 text-white bg-white/20 hover:bg-white/30 p-4 rounded-full z-[110] backdrop-blur-md transition-colors active:scale-90 flex items-center justify-center">
+            <i data-lucide="x" class="w-8 h-8 pointer-events-none"></i>
         </button>
         
         <div class="w-full h-full flex flex-col items-center justify-center p-4" onclick="closeLightbox()">
@@ -188,7 +188,7 @@
         function showLoginModal(show) {
             document.getElementById('login-modal').classList.toggle('hidden', !show);
             if(show) {
-                setTimeout(initIcons, 100);
+                setTimeout(initIcons, 10);
             }
         }
 
@@ -256,7 +256,7 @@
             section.classList.toggle('hidden');
             if (!section.classList.contains('hidden')) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-                setTimeout(initIcons, 100);
+                setTimeout(initIcons, 10);
             }
         }
 
@@ -293,7 +293,6 @@
 
             document.getElementById('submit-btn').addEventListener('click', handleSubmit);
             
-            // キーボード操作対応
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') closeLightbox();
             });
@@ -376,7 +375,6 @@
             posts.forEach(post => {
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col group active:scale-95 transition-all h-fit fade-in";
-                // JSON文字列化の際の引用符エラーを回避
                 const postData = btoa(unescape(encodeURIComponent(JSON.stringify(post))));
                 card.innerHTML = `
                     <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer" onclick="openLightboxFromBase64('${postData}')">
@@ -398,13 +396,12 @@
                 `;
                 grid.appendChild(card);
             });
-            setTimeout(initIcons, 100);
+            setTimeout(initIcons, 10);
         }
 
         async function handleLike(id) { try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'like', id }) }); loadPosts(); } catch (err) {} }
         async function deletePost(id) { if (confirm('この投稿を削除しますか？')) { setLoading(true); try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', id }) }); loadPosts(); } catch (err) {} finally { setLoading(false); } } }
 
-        // データ受け渡しの安全性を高めるための関数
         window.openLightboxFromBase64 = (base64) => {
             const post = JSON.parse(decodeURIComponent(escape(atob(base64))));
             openLightbox(post);
@@ -417,7 +414,11 @@
             document.getElementById('lightbox-comment').textContent = post.comment;
             lb.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            setTimeout(initIcons, 100);
+            
+            // アイコン描画の安定化
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
         };
         
         window.closeLightbox = () => { 
