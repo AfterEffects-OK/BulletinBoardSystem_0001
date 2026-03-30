@@ -16,10 +16,6 @@
         .drop-zone--over { border-color: #6366f1; background-color: #f5f3ff; }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         
-        .safe-area-bottom {
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-
         .loading-overlay { 
             position: fixed; 
             inset: 0; 
@@ -33,12 +29,6 @@
 
         .fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* アイコンが確実に白く、太く見えるように調整 */
-        .fab-icon {
-            stroke: white !important;
-            stroke-width: 3px !important;
-        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-900 pb-20">
@@ -84,7 +74,6 @@
 
     <main class="max-w-[1600px] mx-auto px-2 py-4 sm:px-4">
         <section id="upload-section" class="mb-6 hidden fade-in">
-            <!-- 投稿フォームの内容（省略なし） -->
             <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden max-w-2xl mx-auto">
                 <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
                     <h2 class="font-bold flex items-center gap-2 text-slate-800"><i data-lucide="camera" class="w-5 h-5 text-indigo-600"></i> 新規投稿</h2>
@@ -139,9 +128,12 @@
         </section>
     </main>
 
-    <!-- Floating Action Button: アイコンを確実に表示するように修正 -->
+    <!-- Floating Action Button: Lucideに頼らずSVGを直接埋め込み -->
     <button id="mobile-fab" onclick="toggleUploadSection()" class="hidden fixed bottom-6 right-6 w-16 h-16 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition-transform">
-        <i data-lucide="plus" class="fab-icon w-10 h-10 text-white"></i>
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
     </button>
 
     <div id="lightbox" class="fixed inset-0 bg-black z-50 hidden flex flex-col items-center justify-center">
@@ -174,11 +166,6 @@
         function initIcons() {
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
-                // さらに確実にスタイルを適用
-                document.querySelectorAll('.fab-icon').forEach(icon => {
-                    icon.style.stroke = "white";
-                    icon.style.strokeWidth = "3px";
-                });
             }
         }
 
@@ -211,7 +198,7 @@
                 } else {
                     showMessage('アクセス権限がありません', 'error');
                 }
-            } catch (err) { showMessage('認証エラー', 'error'); }
+            } catch (err) { showMessage('認証エラーが発生しました', 'error'); }
         }
 
         function logout() {
