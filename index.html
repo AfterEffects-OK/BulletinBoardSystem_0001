@@ -16,19 +16,15 @@
         .drop-zone--over { border-color: #6366f1; background-color: #f5f3ff; }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         
-        /* モバイル用のスクロール最適化 */
         .safe-area-bottom {
             padding-bottom: env(safe-area-inset-bottom);
         }
 
-        /* ギャラリーグリッドの調整 */
         .gallery-grid { 
             display: grid; 
             gap: 0.5rem; 
             transition: all 0.3s ease; 
         }
-        /* デフォルト（スマホ）は2列 */
-        grid-template-columns: repeat(2, 1fr);
 
         @media (min-width: 640px) {
             .gallery-grid { gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
@@ -45,7 +41,6 @@
             backdrop-blur: 4px;
         }
 
-        /* アニメーション */
         .fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -92,7 +87,6 @@
     </header>
 
     <main class="max-w-[1600px] mx-auto px-2 py-4 sm:px-4">
-        <!-- Upload Section -->
         <section id="upload-section" class="mb-6 hidden fade-in">
             <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden max-w-2xl mx-auto">
                 <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
@@ -138,7 +132,6 @@
             </div>
         </section>
 
-        <!-- Gallery -->
         <section id="gallery-container">
             <div id="post-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4"></div>
             <div id="empty-state" class="hidden py-32 text-center">
@@ -155,7 +148,6 @@
         <i data-lucide="plus" class="w-8 h-8"></i>
     </button>
 
-    <!-- Lightbox -->
     <div id="lightbox" class="fixed inset-0 bg-black z-50 hidden flex flex-col items-center justify-center">
         <button onclick="closeLightbox()" class="absolute top-6 right-6 text-white/50 hover:text-white bg-white/10 p-3 rounded-full z-[60]">
             <i data-lucide="x" class="w-6 h-6"></i>
@@ -170,13 +162,16 @@
     </div>
 
     <script>
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz5lJlz9EU5b2rdfkWgCx6fPgLTcFJ1-5zcMu2rsDhwulaqAW0JLxHMp9sWP0CE3Hj1/exec'; // GASのウェブアプリURLを入力してください
+        // 【重要】ここにデプロイしたGASのウェブアプリURLを貼り付けてください
+        const GAS_WEB_APP_URL = ''; 
 
         let currentUser = localStorage.getItem('gallery_user') || null;
         let selectedFile = null;
 
         window.onload = function() {
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            // アイコンの初期化を確実に実行
+            initIcons();
+            
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('start-date').value = today;
             
@@ -189,8 +184,16 @@
             initEventListeners();
         };
 
+        // Lucideアイコンのリフレッシュ用
+        function initIcons() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+
         function showLoginModal(show) {
             document.getElementById('login-modal').classList.toggle('hidden', !show);
+            initIcons();
         }
 
         async function handleLogin() {
@@ -202,7 +205,7 @@
         }
 
         async function checkPermission(userId) {
-            if (!GAS_WEB_APP_URL) return alert('GAS URLが未設定です。右側のcode.jsをデプロイし、そのURLをindex.htmlのGAS_WEB_APP_URLに貼り付けてください。');
+            if (!GAS_WEB_APP_URL) return alert('GAS URLが未設定です。');
             try {
                 const res = await fetch(`${GAS_WEB_APP_URL}?action=getWhitelist`);
                 const whitelist = await res.json();
@@ -214,6 +217,8 @@
                     document.getElementById('display-user-name').textContent = `@${userId}`;
                     showLoginModal(false);
                     loadPosts();
+                    // FABが表示された後にもう一度アイコンを初期化
+                    initIcons();
                 } else {
                     showMessage('アクセス権限がありません', 'error');
                     localStorage.removeItem('gallery_user');
@@ -235,6 +240,7 @@
             section.classList.toggle('hidden');
             if (!section.classList.contains('hidden')) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                initIcons(); // セクション内アイコンの初期化
             }
         }
 
@@ -256,6 +262,7 @@
                 document.getElementById('image-preview').src = e.target.result;
                 document.getElementById('preview-container').classList.remove('hidden');
                 document.getElementById('drop-content').classList.add('hidden');
+                initIcons();
             };
             reader.readAsDataURL(file);
         }
@@ -267,6 +274,7 @@
             document.getElementById('preview-container').classList.add('hidden');
             document.getElementById('drop-content').classList.remove('hidden');
             document.getElementById('file-input').value = "";
+            initIcons();
         }
 
         async function handleSubmit() {
@@ -357,7 +365,7 @@
                 `;
                 grid.appendChild(card);
             });
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            initIcons();
         }
 
         async function handleLike(id) {
@@ -379,6 +387,7 @@
             document.getElementById('lightbox-comment').textContent = post.comment;
             lb.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+            initIcons();
         };
 
         window.closeLightbox = () => {
