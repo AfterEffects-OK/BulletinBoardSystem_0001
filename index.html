@@ -33,6 +33,25 @@
 
         .fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 拡大縮小用のコンテナ設定 */
+        #zoom-container {
+            touch-action: none;
+            cursor: grab;
+            transition: transform 0.1s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        #zoom-container:active { cursor: grabbing; }
+        #lightbox-img {
+            max-width: 90vw;
+            max-height: 80vh;
+            user-select: none;
+            pointer-events: none; /* コンテナ側でイベントを拾うため */
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-900 pb-20">
@@ -146,20 +165,31 @@
     </button>
 
     <!-- Lightbox -->
-    <div id="lightbox" class="fixed inset-0 bg-black/95 z-[100] hidden flex flex-col items-center justify-center transition-all">
-        <!-- 閉じるボタン: Lucideに依存せずインラインSVGで確実に表示 -->
-        <button onclick="closeLightbox()" class="absolute top-6 right-6 text-white bg-white/20 hover:bg-white/30 p-4 rounded-full z-[110] backdrop-blur-md transition-colors active:scale-90 flex items-center justify-center overflow-hidden">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-        </button>
+    <div id="lightbox" class="fixed inset-0 bg-black/95 z-[100] hidden flex flex-col overflow-hidden select-none">
+        <!-- 操作用オーバーレイ -->
+        <div class="absolute top-0 inset-x-0 p-4 flex justify-between items-center z-[120] pointer-events-none">
+            <div class="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                <span id="zoom-indicator" class="text-white text-[10px] font-bold tracking-widest">100%</span>
+            </div>
+            <button onclick="closeLightbox()" class="text-white bg-white/20 hover:bg-white/30 p-3 rounded-full pointer-events-auto backdrop-blur-md active:scale-90 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
         
-        <div class="w-full h-full flex flex-col items-center justify-center p-4 cursor-pointer" onclick="closeLightbox()">
-            <img id="lightbox-img" src="" class="max-w-full max-h-[75vh] object-contain shadow-2xl pointer-events-none" alt="Full size">
-            <div class="mt-8 w-full max-w-xl px-6 text-center pointer-events-none">
+        <!-- ズーム・パン対象コンテナ -->
+        <div id="zoom-container" class="flex-grow">
+            <img id="lightbox-img" src="" alt="Full size" class="shadow-2xl transition-transform duration-75 ease-out">
+        </div>
+
+        <!-- 下部情報パネル -->
+        <div class="absolute bottom-0 inset-x-0 p-6 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
+            <div class="max-w-xl mx-auto text-center">
                 <span id="lightbox-user" class="text-indigo-400 font-black text-sm uppercase tracking-widest"></span>
-                <p id="lightbox-comment" class="text-white text-lg mt-3 font-medium leading-relaxed"></p>
+                <p id="lightbox-comment" class="text-white text-lg mt-2 font-medium leading-relaxed drop-shadow-lg"></p>
+                <p class="text-white/40 text-[10px] mt-4 font-bold">スクロールまたはピンチで拡大縮小 / ドラッグで移動</p>
             </div>
         </div>
     </div>
@@ -170,6 +200,14 @@
         let currentUser = localStorage.getItem('gallery_user') || null;
         let selectedFile = null;
 
+        // ズーム・パンの状態管理
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let startX, startY;
+        let initialPinchDistance = null;
+
         window.onload = function() {
             initIcons();
             const today = new Date().toISOString().split('T')[0];
@@ -179,6 +217,7 @@
                 checkPermission(currentUser, true);
             }
             initEventListeners();
+            initZoomHandlers();
         };
 
         function initIcons() {
@@ -300,6 +339,94 @@
             });
         }
 
+        // ズーム・パンの処理
+        function initZoomHandlers() {
+            const container = document.getElementById('zoom-container');
+            const img = document.getElementById('lightbox-img');
+
+            const applyTransform = () => {
+                img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                document.getElementById('zoom-indicator').textContent = `${Math.round(scale * 100)}%`;
+            };
+
+            // マウスホイールでのズーム
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = -e.deltaY;
+                const zoomFactor = 1.1;
+                if (delta > 0) scale *= zoomFactor;
+                else scale /= zoomFactor;
+                
+                scale = Math.min(Math.max(0.5, scale), 10); // 限界値
+                applyTransform();
+            }, { passive: false });
+
+            // ドラッグ移動 (Mouse)
+            container.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX - translateX;
+                startY = e.clientY - translateY;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                applyTransform();
+            });
+
+            window.addEventListener('mouseup', () => { isDragging = false; });
+
+            // タッチ操作 (Pinch & Pan)
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    startX = e.touches[0].clientX - translateX;
+                    startY = e.touches[0].clientY - translateY;
+                } else if (e.touches.length === 2) {
+                    initialPinchDistance = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                }
+            });
+
+            container.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (e.touches.length === 1 && isDragging) {
+                    translateX = e.touches[0].clientX - startX;
+                    translateY = e.touches[0].clientY - startY;
+                } else if (e.touches.length === 2) {
+                    const currentDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    if (initialPinchDistance) {
+                        const zoomFactor = currentDist / initialPinchDistance;
+                        scale *= zoomFactor;
+                        scale = Math.min(Math.max(0.5, scale), 10);
+                        initialPinchDistance = currentDist;
+                    }
+                }
+                applyTransform();
+            }, { passive: false });
+
+            container.addEventListener('touchend', () => {
+                isDragging = false;
+                initialPinchDistance = null;
+            });
+
+            // ダブルタップ/クリックでリセット or 拡大
+            container.addEventListener('dblclick', () => {
+                if (scale > 1.1) {
+                    scale = 1; translateX = 0; translateY = 0;
+                } else {
+                    scale = 2.5;
+                }
+                applyTransform();
+            });
+        }
+
         function handleFile(file) {
             if (!file.type.startsWith('image/')) return showMessage('画像のみ選択できます', 'error');
             if (file.size > 2 * 1024 * 1024) return showMessage('2MB以下にしてください', 'error');
@@ -411,7 +538,14 @@
 
         window.openLightbox = (post) => {
             const lb = document.getElementById('lightbox');
-            document.getElementById('lightbox-img').src = post.imageData;
+            const img = document.getElementById('lightbox-img');
+            img.src = post.imageData;
+            
+            // ズーム状態をリセット
+            scale = 1; translateX = 0; translateY = 0;
+            img.style.transform = `translate(0px, 0px) scale(1)`;
+            document.getElementById('zoom-indicator').textContent = '100%';
+
             document.getElementById('lightbox-user').textContent = `@${post.userName}`;
             document.getElementById('lightbox-comment').textContent = post.comment;
             lb.classList.remove('hidden');
