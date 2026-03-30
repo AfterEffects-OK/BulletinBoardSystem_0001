@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Secure Gallery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/umd/lucide.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: contain;
+        }
+        .drop-zone--over { border-color: #6366f1; background-color: #f5f3ff; }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        
+        /* モバイル用のスクロール最適化 */
+        .safe-area-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* ギャラリーグリッドの調整 */
+        .gallery-grid { 
+            display: grid; 
+            gap: 0.5rem; 
+            transition: all 0.3s ease; 
+        }
+        /* デフォルト（スマホ）は2列 */
+        grid-template-columns: repeat(2, 1fr);
+
+        @media (min-width: 640px) {
+            .gallery-grid { gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+        }
+
+        .loading-overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(255,255,255,0.8); 
+            z-index: 100; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            backdrop-blur: 4px;
+        }
+
+        /* アニメーション */
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900 pb-20">
+
+    <div id="global-loader" class="loading-overlay hidden">
+        <div class="flex flex-col items-center gap-3">
+            <div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 border-t-transparent"></div>
+            <p class="text-xs font-bold text-slate-500">処理中...</p>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center fade-in">
+            <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="shield-check" class="w-10 h-10"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">認証</h2>
+            <p class="text-slate-500 text-sm mb-8 leading-relaxed">登録されているユーザー名を入力してログインしてください。</p>
+            <input type="text" id="login-input" placeholder="ユーザー名" class="w-full px-5 py-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none mb-4 text-lg">
+            <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-indigo-200 transition-all active:scale-[0.98]">
+                ログインする
+            </button>
+        </div>
+    </div>
+
+    <header class="bg-white/90 backdrop-blur-lg border-b border-slate-200 sticky top-0 z-30 h-14 shadow-sm">
+        <div class="max-w-[1600px] mx-auto px-4 h-full flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="bg-indigo-600 p-1.5 rounded-lg">
+                    <i data-lucide="layout-grid" class="text-white w-4 h-4"></i>
+                </div>
+                <h1 class="text-sm font-black tracking-tighter text-slate-800 uppercase italic">CloudGallery</h1>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="loadPosts()" class="p-2 text-slate-400 active:bg-slate-100 rounded-full transition-colors">
+                    <i data-lucide="refresh-cw" class="w-5 h-5" id="refresh-icon"></i>
+                </button>
+                <button onclick="logout()" class="p-2 text-slate-400 active:bg-red-50 rounded-full transition-colors"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto px-2 py-4 sm:px-4">
+        <!-- Upload Section -->
+        <section id="upload-section" class="mb-6 hidden fade-in">
+            <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden max-w-2xl mx-auto">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                    <h2 class="font-bold flex items-center gap-2 text-slate-800"><i data-lucide="camera" class="w-5 h-5 text-indigo-600"></i> 新規投稿</h2>
+                    <button onclick="toggleUploadSection()" class="p-2 bg-slate-100 rounded-full text-slate-500"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                <div class="p-5 space-y-5">
+                    <div id="drop-zone" class="relative aspect-video group cursor-pointer border-2 border-dashed border-slate-200 rounded-2xl transition-all flex flex-col items-center justify-center bg-slate-50 overflow-hidden">
+                        <input type="file" id="file-input" class="hidden" accept="image/*" capture="environment">
+                        <div id="preview-container" class="hidden absolute inset-0 bg-white">
+                            <img id="image-preview" class="w-full h-full object-contain" src="" alt="Preview">
+                            <button onclick="resetImage(event)" class="absolute top-3 right-3 bg-slate-900/70 text-white p-2 rounded-full backdrop-blur-md"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                        <div id="drop-content" class="text-center p-4">
+                            <div class="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-3">
+                                <i data-lucide="image-plus" class="w-6 h-6 text-indigo-500"></i>
+                            </div>
+                            <p class="text-sm font-bold text-slate-700">写真を撮る・選ぶ</p>
+                            <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">Tap to open camera/gallery</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <p id="display-user-name" class="text-[10px] font-black text-indigo-600 uppercase mb-1 ml-1"></p>
+                            <textarea id="comment-input" rows="3" placeholder="今何してる？" class="w-full px-4 py-3 text-sm bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none placeholder:text-slate-400"></textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">掲示開始</label>
+                                <input type="date" id="start-date" class="w-full px-3 py-3 text-xs bg-slate-50 rounded-xl outline-none border-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">掲示終了</label>
+                                <input type="date" id="end-date" class="w-full px-3 py-3 text-xs bg-slate-50 rounded-xl outline-none border-none">
+                            </div>
+                        </div>
+                        <button id="submit-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 active:scale-[0.97] transition-all">
+                            投稿を公開する
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gallery -->
+        <section id="gallery-container">
+            <div id="post-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4"></div>
+            <div id="empty-state" class="hidden py-32 text-center">
+                <div class="bg-white p-8 rounded-3xl shadow-sm inline-block">
+                    <i data-lucide="gallery-horizontal" class="w-10 h-10 text-slate-200 mx-auto mb-4"></i>
+                    <h3 class="text-slate-400 text-sm font-bold">表示できる投稿はありません</h3>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Floating Action Button for Mobile -->
+    <button id="mobile-fab" onclick="toggleUploadSection()" class="hidden fixed bottom-6 right-6 w-16 h-16 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition-transform">
+        <i data-lucide="plus" class="w-8 h-8"></i>
+    </button>
+
+    <!-- Lightbox -->
+    <div id="lightbox" class="fixed inset-0 bg-black z-50 hidden flex flex-col items-center justify-center">
+        <button onclick="closeLightbox()" class="absolute top-6 right-6 text-white/50 hover:text-white bg-white/10 p-3 rounded-full z-[60]">
+            <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+        <div class="w-full h-full flex flex-col items-center justify-center p-4">
+            <img id="lightbox-img" src="" class="max-w-full max-h-[80vh] object-contain" alt="Full size">
+            <div class="mt-6 w-full max-w-xl px-6 text-center">
+                <span id="lightbox-user" class="text-indigo-400 font-black text-sm uppercase tracking-widest"></span>
+                <p id="lightbox-comment" class="text-white text-base mt-2 font-medium leading-relaxed"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz5lJlz9EU5b2rdfkWgCx6fPgLTcFJ1-5zcMu2rsDhwulaqAW0JLxHMp9sWP0CE3Hj1/exec'; // GASのウェブアプリURLを入力してください
+
+        let currentUser = localStorage.getItem('gallery_user') || null;
+        let selectedFile = null;
+
+        window.onload = function() {
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('start-date').value = today;
+            
+            if (currentUser) {
+                checkPermission(currentUser);
+            } else {
+                showLoginModal(true);
+            }
+            
+            initEventListeners();
+        };
+
+        function showLoginModal(show) {
+            document.getElementById('login-modal').classList.toggle('hidden', !show);
+        }
+
+        async function handleLogin() {
+            const input = document.getElementById('login-input').value.trim();
+            if (!input) return;
+            setLoading(true);
+            await checkPermission(input);
+            setLoading(false);
+        }
+
+        async function checkPermission(userId) {
+            if (!GAS_WEB_APP_URL) return alert('GAS URLが未設定です。右側のcode.jsをデプロイし、そのURLをindex.htmlのGAS_WEB_APP_URLに貼り付けてください。');
+            try {
+                const res = await fetch(`${GAS_WEB_APP_URL}?action=getWhitelist`);
+                const whitelist = await res.json();
+                
+                if (whitelist.includes(userId)) {
+                    currentUser = userId;
+                    localStorage.setItem('gallery_user', userId);
+                    document.getElementById('mobile-fab').classList.remove('hidden');
+                    document.getElementById('display-user-name').textContent = `@${userId}`;
+                    showLoginModal(false);
+                    loadPosts();
+                } else {
+                    showMessage('アクセス権限がありません', 'error');
+                    localStorage.removeItem('gallery_user');
+                }
+            } catch (err) {
+                showMessage('認証エラーが発生しました', 'error');
+            }
+        }
+
+        function logout() {
+            if(confirm('ログアウトしますか？')) {
+                localStorage.removeItem('gallery_user');
+                location.reload();
+            }
+        }
+
+        function toggleUploadSection() { 
+            const section = document.getElementById('upload-section');
+            section.classList.toggle('hidden');
+            if (!section.classList.contains('hidden')) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function initEventListeners() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+            dropZone.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFile(e.target.files[0]); });
+            document.getElementById('submit-btn').addEventListener('click', handleSubmit);
+            document.getElementById('lightbox').addEventListener('click', (e) => { if (e.target.id === 'lightbox') closeLightbox(); });
+        }
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) return showMessage('画像のみ選択できます', 'error');
+            if (file.size > 2 * 1024 * 1024) return showMessage('2MB以下にしてください', 'error');
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('image-preview').src = e.target.result;
+                document.getElementById('preview-container').classList.remove('hidden');
+                document.getElementById('drop-content').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resetImage(e) {
+            if (e) e.stopPropagation();
+            selectedFile = null;
+            document.getElementById('image-preview').src = "";
+            document.getElementById('preview-container').classList.add('hidden');
+            document.getElementById('drop-content').classList.remove('hidden');
+            document.getElementById('file-input').value = "";
+        }
+
+        async function handleSubmit() {
+            const comment = document.getElementById('comment-input').value.trim();
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+
+            if (!selectedFile || !comment || !startDate) return showMessage('未入力の項目があります', 'error');
+
+            setLoading(true);
+            const post = {
+                id: crypto.randomUUID(),
+                userName: currentUser,
+                comment,
+                imageData: document.getElementById('image-preview').src,
+                timestamp: Date.now(),
+                likes: 0,
+                startDate,
+                endDate: endDate || '9999-12-31'
+            };
+
+            try {
+                const res = await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'add', post }) });
+                const result = await res.json();
+                if (result.status === 'success') {
+                    showMessage('投稿が完了しました', 'success');
+                    resetForm();
+                    toggleUploadSection();
+                    loadPosts();
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (err) { showMessage('通信エラー', 'error'); }
+            finally { setLoading(false); }
+        }
+
+        function resetForm() {
+            document.getElementById('comment-input').value = "";
+            document.getElementById('end-date').value = "";
+            resetImage();
+        }
+
+        async function loadPosts() {
+            if (!GAS_WEB_APP_URL || !currentUser) return;
+            const refreshIcon = document.getElementById('refresh-icon');
+            refreshIcon.classList.add('animate-spin');
+            try {
+                const res = await fetch(GAS_WEB_APP_URL);
+                const posts = await res.json();
+                const todayStr = new Date().toISOString().split('T')[0];
+                const activePosts = posts.filter(p => {
+                    const start = p.startDate || '0000-00-00';
+                    const end = p.endDate || '9999-12-31';
+                    return todayStr >= start && todayStr <= end;
+                });
+                renderPosts(activePosts.sort((a, b) => b.timestamp - a.timestamp));
+            } catch (err) { showMessage('読み込みに失敗しました', 'error'); }
+            finally { refreshIcon.classList.remove('animate-spin'); }
+        }
+
+        function renderPosts(posts) {
+            const grid = document.getElementById('post-grid');
+            const emptyState = document.getElementById('empty-state');
+            grid.innerHTML = "";
+            if (posts.length === 0) { emptyState.classList.remove('hidden'); return; }
+            emptyState.classList.add('hidden');
+
+            posts.forEach(post => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col group active:scale-95 transition-all h-fit fade-in";
+                card.innerHTML = `
+                    <div class="relative aspect-square bg-slate-100 overflow-hidden" onclick='openLightbox(${JSON.stringify(post).replace(/'/g, "&apos;")})'>
+                        <img src="${post.imageData}" class="w-full h-full object-cover" loading="lazy">
+                    </div>
+                    <div class="p-3">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-[10px] font-black text-indigo-600 truncate mr-2">@${post.userName}</span>
+                            <span class="text-[9px] text-slate-300 shrink-0 italic">${post.endDate === '9999-12-31' ? 'ALWAYS' : post.endDate.slice(5)}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-600 line-clamp-2 leading-tight min-h-[2.4em]">${post.comment}</p>
+                        <div class="flex justify-between items-center mt-3 pt-2 border-t border-slate-50">
+                            <button onclick="handleLike('${post.id}')" class="text-slate-300 hover:text-pink-500 flex items-center gap-1 active:scale-125 transition-transform"><i data-lucide="heart" class="w-3.5 h-3.5"></i><span class="text-[10px] font-bold">${post.likes}</span></button>
+                            ${post.userName === currentUser ? `
+                                <button onclick="deletePost('${post.id}')" class="text-slate-200 hover:text-red-400 p-1"><i data-lucide="more-horizontal" class="w-3.5 h-3.5"></i></button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        async function handleLike(id) {
+            try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'like', id }) }); loadPosts(); } catch (err) {}
+        }
+
+        async function deletePost(id) {
+            if (confirm('この投稿を削除しますか？')) {
+                setLoading(true);
+                try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', id }) }); loadPosts(); } catch (err) {}
+                finally { setLoading(false); }
+            }
+        }
+
+        window.openLightbox = (post) => {
+            const lb = document.getElementById('lightbox');
+            document.getElementById('lightbox-img').src = post.imageData;
+            document.getElementById('lightbox-user').textContent = `@${post.userName}`;
+            document.getElementById('lightbox-comment').textContent = post.comment;
+            lb.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeLightbox = () => {
+            document.getElementById('lightbox').classList.add('hidden');
+            document.body.style.overflow = '';
+        };
+
+        function setLoading(isLoading) { document.getElementById('global-loader').classList.toggle('hidden', !isLoading); }
+        function showMessage(text, type) {
+            const box = document.createElement('div');
+            box.className = `fixed bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl text-xs text-white font-bold z-[100] transition-all shadow-2xl fade-in ${type === 'error' ? 'bg-red-500' : 'bg-slate-800'}`;
+            box.textContent = text;
+            document.body.appendChild(box);
+            setTimeout(() => { box.style.opacity = '0'; box.style.transform = 'translate(-50%, 20px)'; setTimeout(() => box.remove(), 500); }, 2500);
+        }
+    </script>
+</body>
+</html>
