@@ -45,7 +45,7 @@
         </div>
     </div>
 
-    <!-- Login Modal: 必要な時だけ表示 -->
+    <!-- Login Modal -->
     <div id="login-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-6 hidden">
         <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center fade-in">
             <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -90,12 +90,11 @@
                     <button onclick="toggleUploadSection()" class="p-2 bg-slate-100 rounded-full text-slate-500"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
                 <div class="p-5 space-y-5">
-                    <!-- ドロップゾーン -->
                     <div id="drop-zone" class="relative aspect-video group cursor-pointer border-2 border-dashed border-slate-200 rounded-2xl transition-all flex flex-col items-center justify-center bg-slate-50 overflow-hidden">
                         <input type="file" id="file-input" class="hidden" accept="image/*" capture="environment">
                         <div id="preview-container" class="hidden absolute inset-0 bg-white">
                             <img id="image-preview" class="w-full h-full object-contain" src="" alt="Preview">
-                            <button onclick="resetImage(event)" class="absolute top-3 right-3 bg-slate-900/70 text-white p-2 rounded-full backdrop-blur-md"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            <button onclick="resetImage(event)" class="absolute top-3 right-3 bg-slate-900/70 text-white p-2 rounded-full backdrop-blur-md z-10"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </div>
                         <div id="drop-content" class="text-center p-4">
                             <div class="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-3">
@@ -147,15 +146,18 @@
         </svg>
     </button>
 
-    <div id="lightbox" class="fixed inset-0 bg-black z-50 hidden flex flex-col items-center justify-center">
-        <button onclick="closeLightbox()" class="absolute top-6 right-6 text-white/50 hover:text-white bg-white/10 p-3 rounded-full z-[60]">
-            <i data-lucide="x" class="w-6 h-6"></i>
+    <!-- Lightbox: 背景クリックでも閉じられるように修正 -->
+    <div id="lightbox" class="fixed inset-0 bg-black/95 z-[100] hidden flex flex-col items-center justify-center transition-all">
+        <!-- 閉じるボタン: z-indexを最前面にし、タッチしやすく拡大 -->
+        <button onclick="closeLightbox()" class="absolute top-6 right-6 text-white bg-white/20 hover:bg-white/30 p-4 rounded-full z-[110] backdrop-blur-md transition-colors active:scale-90">
+            <i data-lucide="x" class="w-8 h-8"></i>
         </button>
-        <div class="w-full h-full flex flex-col items-center justify-center p-4">
-            <img id="lightbox-img" src="" class="max-w-full max-h-[80vh] object-contain" alt="Full size">
-            <div class="mt-6 w-full max-w-xl px-6 text-center">
+        
+        <div class="w-full h-full flex flex-col items-center justify-center p-4" onclick="closeLightbox()">
+            <img id="lightbox-img" src="" class="max-w-full max-h-[75vh] object-contain shadow-2xl pointer-events-none" alt="Full size">
+            <div class="mt-8 w-full max-w-xl px-6 text-center pointer-events-none">
                 <span id="lightbox-user" class="text-indigo-400 font-black text-sm uppercase tracking-widest"></span>
-                <p id="lightbox-comment" class="text-white text-base mt-2 font-medium leading-relaxed"></p>
+                <p id="lightbox-comment" class="text-white text-lg mt-3 font-medium leading-relaxed"></p>
             </div>
         </div>
     </div>
@@ -262,13 +264,9 @@
             const dropZone = document.getElementById('drop-zone');
             const fileInput = document.getElementById('file-input');
             
-            // クリックでファイル選択
             dropZone.addEventListener('click', () => fileInput.click());
-            
-            // ファイル選択時の処理
             fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFile(e.target.files[0]); });
 
-            // ドラッグ&ドロップイベントの追加
             ['dragover', 'dragenter'].forEach(eventName => {
                 dropZone.addEventListener(eventName, (e) => {
                     e.preventDefault();
@@ -294,7 +292,11 @@
             });
 
             document.getElementById('submit-btn').addEventListener('click', handleSubmit);
-            document.getElementById('lightbox').addEventListener('click', (e) => { if (e.target.id === 'lightbox') closeLightbox(); });
+            
+            // キーボード操作対応
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeLightbox();
+            });
         }
 
         function handleFile(file) {
@@ -374,8 +376,10 @@
             posts.forEach(post => {
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col group active:scale-95 transition-all h-fit fade-in";
+                // JSON文字列化の際の引用符エラーを回避
+                const postData = btoa(unescape(encodeURIComponent(JSON.stringify(post))));
                 card.innerHTML = `
-                    <div class="relative aspect-square bg-slate-100 overflow-hidden" onclick='openLightbox(${JSON.stringify(post).replace(/'/g, "&apos;")})'>
+                    <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer" onclick="openLightboxFromBase64('${postData}')">
                         <img src="${post.imageData}" class="w-full h-full object-cover" loading="lazy">
                     </div>
                     <div class="p-3">
@@ -400,6 +404,12 @@
         async function handleLike(id) { try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'like', id }) }); loadPosts(); } catch (err) {} }
         async function deletePost(id) { if (confirm('この投稿を削除しますか？')) { setLoading(true); try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', id }) }); loadPosts(); } catch (err) {} finally { setLoading(false); } } }
 
+        // データ受け渡しの安全性を高めるための関数
+        window.openLightboxFromBase64 = (base64) => {
+            const post = JSON.parse(decodeURIComponent(escape(atob(base64))));
+            openLightbox(post);
+        };
+
         window.openLightbox = (post) => {
             const lb = document.getElementById('lightbox');
             document.getElementById('lightbox-img').src = post.imageData;
@@ -409,7 +419,13 @@
             document.body.style.overflow = 'hidden';
             setTimeout(initIcons, 100);
         };
-        window.closeLightbox = () => { document.getElementById('lightbox').classList.add('hidden'); document.body.style.overflow = ''; };
+        
+        window.closeLightbox = () => { 
+            const lb = document.getElementById('lightbox');
+            lb.classList.add('hidden'); 
+            document.body.style.overflow = ''; 
+        };
+
         function setLoading(isLoading) { document.getElementById('global-loader').classList.toggle('hidden', !isLoading); }
         function showMessage(text, type) {
             const box = document.createElement('div');
