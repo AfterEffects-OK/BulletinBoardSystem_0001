@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mobile Secure Gallery</title>
+    <title>Mobile Public Gallery</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/umd/lucide.min.js"></script>
     <style>
@@ -40,18 +40,21 @@
         </div>
     </div>
 
-    <!-- Login Modal -->
-    <div id="login-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-6">
+    <!-- Login Modal: 必要な時だけ表示 -->
+    <div id="login-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-6 hidden">
         <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center fade-in">
             <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
                 <i data-lucide="shield-check" class="w-10 h-10"></i>
             </div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">認証</h2>
-            <p class="text-slate-500 text-sm mb-8 leading-relaxed">登録されているユーザー名を入力してログインしてください。</p>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">投稿者認証</h2>
+            <p class="text-slate-500 text-sm mb-8 leading-relaxed">写真を投稿するには、登録されているユーザー名でログインしてください。</p>
             <input type="text" id="login-input" placeholder="ユーザー名" class="w-full px-5 py-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none mb-4 text-lg">
-            <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-indigo-200 transition-all active:scale-[0.98]">
-                ログインする
-            </button>
+            <div class="flex flex-col gap-3">
+                <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-indigo-200 transition-all active:scale-[0.98]">
+                    ログインする
+                </button>
+                <button onclick="showLoginModal(false)" class="text-slate-400 text-sm font-medium py-2">キャンセル</button>
+            </div>
         </div>
     </div>
 
@@ -67,7 +70,10 @@
                 <button onclick="loadPosts()" class="p-2 text-slate-400 active:bg-slate-100 rounded-full transition-colors">
                     <i data-lucide="refresh-cw" class="w-5 h-5" id="refresh-icon"></i>
                 </button>
-                <button onclick="logout()" class="p-2 text-slate-400 active:bg-red-50 rounded-full transition-colors"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+                <!-- ログイン・ログアウトボタンを動的に切り替え -->
+                <div id="auth-header-btn">
+                    <button onclick="showLoginModal(true)" class="text-xs font-bold bg-slate-100 text-slate-600 px-4 py-2 rounded-full">ログイン</button>
+                </div>
             </div>
         </div>
     </header>
@@ -128,7 +134,7 @@
         </section>
     </main>
 
-    <!-- Floating Action Button: Lucideに頼らずSVGを直接埋め込み -->
+    <!-- Floating Action Button: ログイン時のみ表示 -->
     <button id="mobile-fab" onclick="toggleUploadSection()" class="hidden fixed bottom-6 right-6 w-16 h-16 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition-transform">
         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -150,7 +156,7 @@
     </div>
 
     <script>
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz5lJlz9EU5b2rdfkWgCx6fPgLTcFJ1-5zcMu2rsDhwulaqAW0JLxHMp9sWP0CE3Hj1/exec'; 
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz5lJlz9EU5b2rdfkWgCx6fPgLTcFJ1-5zcMu2rsDhwulaqAW0JLxHMp9sWP0CE3Hj1/exec'; // GASのデプロイURLをここに設定
 
         let currentUser = localStorage.getItem('gallery_user') || null;
         let selectedFile = null;
@@ -159,7 +165,15 @@
             initIcons();
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('start-date').value = today;
-            if (currentUser) { checkPermission(currentUser); } else { showLoginModal(true); }
+            
+            // 誰でも閲覧可能：まず読み込む
+            loadPosts();
+
+            // すでにログイン情報がある場合は認証チェックを行う（投稿ボタン表示のため）
+            if (currentUser) {
+                checkPermission(currentUser, true); // silentCheck: true
+            }
+            
             initEventListeners();
         };
 
@@ -171,44 +185,72 @@
 
         function showLoginModal(show) {
             document.getElementById('login-modal').classList.toggle('hidden', !show);
-            setTimeout(initIcons, 100);
+            if(show) {
+                setTimeout(initIcons, 100);
+            }
         }
 
         async function handleLogin() {
             const input = document.getElementById('login-input').value.trim();
             if (!input) return;
             setLoading(true);
-            await checkPermission(input);
+            await checkPermission(input, false);
             setLoading(false);
         }
 
-        async function checkPermission(userId) {
-            if (!GAS_WEB_APP_URL) return alert('GAS URLが未設定です。');
+        async function checkPermission(userId, silentCheck = false) {
+            if (!GAS_WEB_APP_URL) {
+                if(!silentCheck) alert('GAS URLが未設定です。');
+                return;
+            }
             try {
                 const res = await fetch(`${GAS_WEB_APP_URL}?action=getWhitelist`);
                 const whitelist = await res.json();
                 if (whitelist.includes(userId)) {
                     currentUser = userId;
                     localStorage.setItem('gallery_user', userId);
-                    document.getElementById('mobile-fab').classList.remove('hidden');
-                    document.getElementById('display-user-name').textContent = `@${userId}`;
+                    updateAuthUI(true);
                     showLoginModal(false);
-                    loadPosts();
-                    setTimeout(initIcons, 200);
                 } else {
-                    showMessage('アクセス権限がありません', 'error');
+                    if(!silentCheck) showMessage('アクセス権限がありません', 'error');
+                    logout(false);
                 }
-            } catch (err) { showMessage('認証エラーが発生しました', 'error'); }
-        }
-
-        function logout() {
-            if(confirm('ログアウトしますか？')) {
-                localStorage.removeItem('gallery_user');
-                location.reload();
+            } catch (err) { 
+                if(!silentCheck) showMessage('認証エラーが発生しました', 'error'); 
             }
         }
 
+        function updateAuthUI(isLoggedIn) {
+            const fab = document.getElementById('mobile-fab');
+            const authBtnContainer = document.getElementById('auth-header-btn');
+            const displayName = document.getElementById('display-user-name');
+
+            if (isLoggedIn) {
+                fab.classList.remove('hidden');
+                displayName.textContent = `@${currentUser}`;
+                authBtnContainer.innerHTML = `<button onclick="logout()" class="p-2 text-slate-400 active:bg-red-50 rounded-full transition-colors"><i data-lucide="log-out" class="w-5 h-5"></i></button>`;
+            } else {
+                fab.classList.add('hidden');
+                displayName.textContent = '';
+                authBtnContainer.innerHTML = `<button onclick="showLoginModal(true)" class="text-xs font-bold bg-slate-100 text-slate-600 px-4 py-2 rounded-full">ログイン</button>`;
+            }
+            initIcons();
+        }
+
+        function logout(confirmNeeded = true) {
+            if(confirmNeeded && !confirm('ログアウトしますか？')) return;
+            localStorage.removeItem('gallery_user');
+            currentUser = null;
+            updateAuthUI(false);
+            // 投稿セクションが開いていたら閉じる
+            document.getElementById('upload-section').classList.add('hidden');
+        }
+
         function toggleUploadSection() { 
+            if (!currentUser) {
+                showLoginModal(true);
+                return;
+            }
             const section = document.getElementById('upload-section');
             section.classList.toggle('hidden');
             if (!section.classList.contains('hidden')) {
@@ -235,7 +277,6 @@
                 document.getElementById('image-preview').src = e.target.result;
                 document.getElementById('preview-container').classList.remove('hidden');
                 document.getElementById('drop-content').classList.add('hidden');
-                setTimeout(initIcons, 100);
             };
             reader.readAsDataURL(file);
         }
@@ -247,7 +288,6 @@
             document.getElementById('preview-container').classList.add('hidden');
             document.getElementById('drop-content').classList.remove('hidden');
             document.getElementById('file-input').value = "";
-            setTimeout(initIcons, 100);
         }
 
         async function handleSubmit() {
@@ -279,7 +319,7 @@
         }
 
         async function loadPosts() {
-            if (!GAS_WEB_APP_URL || !currentUser) return;
+            if (!GAS_WEB_APP_URL) return;
             const refreshIcon = document.getElementById('refresh-icon');
             refreshIcon.classList.add('animate-spin');
             try {
@@ -317,7 +357,7 @@
                         <p class="text-[11px] text-slate-600 line-clamp-2 leading-tight min-h-[2.4em]">${post.comment}</p>
                         <div class="flex justify-between items-center mt-3 pt-2 border-t border-slate-50">
                             <button onclick="handleLike('${post.id}')" class="text-slate-300 hover:text-pink-500 flex items-center gap-1 active:scale-125 transition-transform"><i data-lucide="heart" class="w-3.5 h-3.5"></i><span class="text-[10px] font-bold">${post.likes}</span></button>
-                            ${post.userName === currentUser ? `
+                            ${(currentUser && post.userName === currentUser) ? `
                                 <button onclick="deletePost('${post.id}')" class="text-slate-200 hover:text-red-400 p-1"><i data-lucide="more-horizontal" class="w-3.5 h-3.5"></i></button>
                             ` : ''}
                         </div>
