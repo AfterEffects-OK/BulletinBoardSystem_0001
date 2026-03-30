@@ -50,7 +50,7 @@
             max-width: 90vw;
             max-height: 80vh;
             user-select: none;
-            pointer-events: none; /* コンテナ側でイベントを拾うため */
+            pointer-events: none;
         }
     </style>
 </head>
@@ -187,7 +187,7 @@
         <!-- 下部情報パネル -->
         <div class="absolute bottom-0 inset-x-0 p-6 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
             <div class="max-w-xl mx-auto text-center">
-                <span id="lightbox-user" class="text-indigo-400 font-black text-sm uppercase tracking-widest"></span>
+                <!-- ユーザー名表示を削除 -->
                 <p id="lightbox-comment" class="text-white text-lg mt-2 font-medium leading-relaxed drop-shadow-lg"></p>
                 <p class="text-white/40 text-[10px] mt-4 font-bold">スクロールまたはピンチで拡大縮小 / ドラッグで移動</p>
             </div>
@@ -339,7 +339,6 @@
             });
         }
 
-        // ズーム・パンの処理
         function initZoomHandlers() {
             const container = document.getElementById('zoom-container');
             const img = document.getElementById('lightbox-img');
@@ -349,7 +348,6 @@
                 document.getElementById('zoom-indicator').textContent = `${Math.round(scale * 100)}%`;
             };
 
-            // マウスホイールでのズーム
             container.addEventListener('wheel', (e) => {
                 e.preventDefault();
                 const delta = -e.deltaY;
@@ -357,11 +355,10 @@
                 if (delta > 0) scale *= zoomFactor;
                 else scale /= zoomFactor;
                 
-                scale = Math.min(Math.max(0.5, scale), 10); // 限界値
+                scale = Math.min(Math.max(0.5, scale), 10);
                 applyTransform();
             }, { passive: false });
 
-            // ドラッグ移動 (Mouse)
             container.addEventListener('mousedown', (e) => {
                 isDragging = true;
                 startX = e.clientX - translateX;
@@ -377,7 +374,6 @@
 
             window.addEventListener('mouseup', () => { isDragging = false; });
 
-            // タッチ操作 (Pinch & Pan)
             container.addEventListener('touchstart', (e) => {
                 if (e.touches.length === 1) {
                     isDragging = true;
@@ -416,7 +412,6 @@
                 initialPinchDistance = null;
             });
 
-            // ダブルタップ/クリックでリセット or 拡大
             container.addEventListener('dblclick', () => {
                 if (scale > 1.1) {
                     scale = 1; translateX = 0; translateY = 0;
@@ -510,8 +505,8 @@
                         <img src="${post.imageData}" class="w-full h-full object-cover" loading="lazy">
                     </div>
                     <div class="p-3">
-                        <div class="flex justify-between items-start mb-1">
-                            <span class="text-[10px] font-black text-indigo-600 truncate mr-2">@${post.userName}</span>
+                        <div class="flex justify-end items-start mb-1">
+                            <!-- ユーザー名表示箇所を削除 -->
                             <span class="text-[9px] text-slate-300 shrink-0 italic">${post.endDate === '9999-12-31' ? 'ALWAYS' : post.endDate.slice(5)}</span>
                         </div>
                         <p class="text-[11px] text-slate-600 line-clamp-2 leading-tight min-h-[2.4em]">${post.comment}</p>
@@ -541,12 +536,11 @@
             const img = document.getElementById('lightbox-img');
             img.src = post.imageData;
             
-            // ズーム状態をリセット
             scale = 1; translateX = 0; translateY = 0;
             img.style.transform = `translate(0px, 0px) scale(1)`;
             document.getElementById('zoom-indicator').textContent = '100%';
 
-            document.getElementById('lightbox-user').textContent = `@${post.userName}`;
+            // コメントのみ設定
             document.getElementById('lightbox-comment').textContent = post.comment;
             lb.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
