@@ -27,6 +27,11 @@ window.onload = function() {
     setupZoomHandlers('zoom-container', 'lightbox-img', 'zoom-indicator');
     setupZoomHandlers('side-zoom-container', 'side-lightbox-img', 'side-zoom-indicator');
     initSidePanelResizer();
+
+    // 1時間（3,600,000ミリ秒）ごとに自動リロード
+    setInterval(() => {
+        location.reload();
+    }, 3600000);
 };
 
 function initIcons() {
