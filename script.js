@@ -358,8 +358,11 @@ async function handleSubmit() {
         if (result.status === 'success') {
             showMessage(editingPostId ? '更新しました' : '投稿しました', 'success');
             resetForm(); toggleUploadSection(); loadPosts();
-        } else { showMessage(result.message, 'error'); }
-    } catch (err) { showMessage('送信に失敗しました', 'error'); }
+        } else { showMessage(result.message || 'サーバーエラーが発生しました', 'error'); }
+    } catch (err) {
+        console.error('Submit Error:', err); // ブラウザのコンソールに詳細を出力
+        showMessage('送信に失敗しました', 'error');
+    }
     finally { setLoading(false); }
 }
 
