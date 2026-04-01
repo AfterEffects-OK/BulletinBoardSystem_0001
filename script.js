@@ -223,6 +223,25 @@ function initSidePanelResizer() {
     });
 }
 
+// Helper function to format date to YYYY-MM-DD
+function formatDateToYYYYMMDD(dateString) {
+    if (!dateString) return "";
+    try {
+        const date = new Date(dateString);
+        // Check if the date is valid
+        if (isNaN(date.getTime())) {
+            return ""; // Invalid date string
+        }
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    } catch (e) {
+        console.error("Error formatting date:", dateString, e);
+        return "";
+    }
+}
+
 function setupZoomHandlers(containerId, imgId, indicatorId) {
     const container = document.getElementById(containerId);
     const img = document.getElementById(imgId);
@@ -478,8 +497,8 @@ function editPost(base64) {
     editingPostLikes = post.likes || 0;
     
     document.getElementById('comment-input').value = post.comment;
-    document.getElementById('start-date').value = post.startDate ? post.startDate.split('T')[0] : "";
-    document.getElementById('end-date').value = (post.endDate && post.endDate !== '9999-12-31') ? post.endDate.split('T')[0] : "";
+    document.getElementById('start-date').value = formatDateToYYYYMMDD(post.startDate);
+    document.getElementById('end-date').value = (post.endDate && post.endDate !== '9999-12-31') ? formatDateToYYYYMMDD(post.endDate) : "";
     
     const preview = document.getElementById('image-preview');
     preview.src = post.imageData;
