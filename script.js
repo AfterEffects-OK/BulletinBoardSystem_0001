@@ -3,6 +3,7 @@ const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz5lJlz9EU5b2rd
 let currentUser = localStorage.getItem('gallery_user') || null;
 let selectedFile = null;
 let editingPostId = null;
+let editingPostLikes = 0;
 
 // ズーム・パンの状態管理（コンテナごとに保持するためのマップ）
 const zoomStates = {
@@ -207,9 +208,6 @@ function initSidePanelResizer() {
         // 最小300px、最大は画面幅の70%までに制限
         if (newWidth > 300 && newWidth < window.innerWidth * 0.7) {
             sidePanel.style.width = `${newWidth}px`;
-            // 幅が変わったのでマーキーを再計算
-            const commentEl = document.getElementById('side-lightbox-comment');
-            if (commentEl) initMarquee(commentEl);
         }
     });
 
@@ -218,6 +216,9 @@ function initSidePanelResizer() {
             isResizing = false;
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
+                    // ドラッグ終了時にマーキーを再計算
+                    const commentEl = document.getElementById('side-lightbox-comment');
+                    if (commentEl) initMarquee(commentEl);
         }
     });
 }
@@ -262,10 +263,11 @@ function setupZoomHandlers(containerId, imgId, indicatorId) {
     window.addEventListener('mouseup', () => { activeIsDragging = false; });
 
     container.addEventListener('touchstart', (e) => {
+        const state = zoomStates[containerId];
         if (e.touches.length === 1) {
-            isDragging = true;
-            startX = e.touches[0].clientX - translateX;
-            startY = e.touches[0].clientY - translateY;
+            activeIsDragging = true;
+            activeStartX = e.touches[0].clientX - state.translateX;
+            activeStartY = e.touches[0].clientY - state.translateY;
         } else if (e.touches.length === 2) {
             initialPinchDistance = Math.hypot(
                 e.touches[0].clientX - e.touches[1].clientX,
@@ -348,7 +350,7 @@ async function handleSubmit() {
         userName: currentUser, 
         comment,
         imageData: imageData,
-        timestamp: Date.now(), likes: 0, startDate, endDate: endDate || '9999-12-31'
+        timestamp: Date.now(), likes: editingPostId ? editingPostLikes : 0, startDate, endDate: endDate || '9999-12-31'
     };
     try {
         const res = await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action, post }) });
@@ -366,6 +368,7 @@ function resetForm() {
     document.getElementById('end-date').value = "";
     resetImage();
     editingPostId = null;
+    editingPostLikes = 0;
     document.getElementById('form-title').textContent = "新規投稿";
     document.getElementById('submit-btn').textContent = "投稿を公開する";
 }
@@ -450,6 +453,7 @@ function renderPosts(posts) {
 function editPost(base64) {
     const post = JSON.parse(decodeURIComponent(escape(atob(base64))));
     editingPostId = post.id;
+    editingPostLikes = post.likes || 0;
     
     document.getElementById('comment-input').value = post.comment;
     document.getElementById('start-date').value = post.startDate;
