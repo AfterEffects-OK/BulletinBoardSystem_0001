@@ -360,7 +360,14 @@ async function handleSubmit() {
     const endDate = document.getElementById('end-date').value;
     const imageData = document.getElementById('image-preview').src;
 
-    if (!imageData || !comment || !startDate) return showMessage('未入力の項目があります', 'error');
+    const missingFields = [];
+    if (document.getElementById('preview-container').classList.contains('hidden')) missingFields.push("画像");
+    if (!comment) missingFields.push("コメント");
+    if (!startDate) missingFields.push("掲載開始日");
+
+    if (missingFields.length > 0) {
+        return showMessage(`未入力の項目があります: ${missingFields.join('、')}`, 'error');
+    }
     
     // ID生成の安全なフォールバック (HTTPS環境以外や古いブラウザへの対応)
     const generateId = () => {
