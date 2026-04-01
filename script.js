@@ -343,10 +343,19 @@ async function handleSubmit() {
 
     if (!imageData || !comment || !startDate) return showMessage('未入力の項目があります', 'error');
     
+    // ID生成の安全なフォールバック (HTTPS環境以外や古いブラウザへの対応)
+    const generateId = () => {
+        try {
+            return crypto.randomUUID();
+        } catch (e) {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+    };
+
     setLoading(true);
     const action = editingPostId ? 'update' : 'add';
     const post = {
-        id: editingPostId || crypto.randomUUID(), 
+        id: editingPostId || generateId(), 
         userName: currentUser, 
         comment,
         imageData: imageData,
@@ -358,8 +367,8 @@ async function handleSubmit() {
     try {
         const res = await fetch(GAS_WEB_APP_URL, { 
             method: 'POST', 
-            // GASへのCORSエラーを回避するためにtext/plainを使用
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            // プリフライト(OPTIONS)リクエストを回避するため、最もシンプルなtext/plainを使用
+            headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action, post }) 
         });
         const result = await res.json();
@@ -376,6 +385,8 @@ async function handleSubmit() {
 
 function resetForm() {
     document.getElementById('comment-input').value = "";
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('start-date').value = today;
     document.getElementById('end-date').value = "";
     resetImage();
     editingPostId = null;
@@ -467,8 +478,8 @@ function editPost(base64) {
     editingPostLikes = post.likes || 0;
     
     document.getElementById('comment-input').value = post.comment;
-    document.getElementById('start-date').value = post.startDate;
-    document.getElementById('end-date').value = post.endDate === '9999-12-31' ? '' : post.endDate;
+    document.getElementById('start-date').value = post.startDate ? post.startDate.split('T')[0] : "";
+    document.getElementById('end-date').value = (post.endDate && post.endDate !== '9999-12-31') ? post.endDate.split('T')[0] : "";
     
     const preview = document.getElementById('image-preview');
     preview.src = post.imageData;
