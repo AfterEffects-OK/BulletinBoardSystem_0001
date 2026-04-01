@@ -227,35 +227,39 @@ function setupZoomHandlers(containerId, imgId, indicatorId) {
     const img = document.getElementById(imgId);
 
     const applyTransform = () => {
-        img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
-        document.getElementById(indicatorId).textContent = `${Math.round(scale * 100)}%`;
+        const state = zoomStates[containerId];
+        img.style.transform = `translate(${state.translateX}px, ${state.translateY}px) scale(${state.scale})`;
+        document.getElementById(indicatorId).textContent = `${Math.round(state.scale * 100)}%`;
     };
 
     container.addEventListener('wheel', (e) => {
         e.preventDefault();
+        const state = zoomStates[containerId];
         const delta = -e.deltaY;
         const zoomFactor = 1.1;
-        if (delta > 0) scale *= zoomFactor;
-        else scale /= zoomFactor;
+        if (delta > 0) state.scale *= zoomFactor;
+        else state.scale /= zoomFactor;
         
-        scale = Math.min(Math.max(0.5, scale), 10);
+        state.scale = Math.min(Math.max(0.5, state.scale), 10);
         applyTransform();
     }, { passive: false });
 
     container.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        startX = e.clientX - translateX;
-        startY = e.clientY - translateY;
+        const state = zoomStates[containerId];
+        activeIsDragging = true;
+        activeStartX = e.clientX - state.translateX;
+        activeStartY = e.clientY - state.translateY;
     });
 
     window.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        translateX = e.clientX - startX;
-        translateY = e.clientY - startY;
+        if (!activeIsDragging) return;
+        const state = zoomStates[containerId];
+        state.translateX = e.clientX - activeStartX;
+        state.translateY = e.clientY - activeStartY;
         applyTransform();
     });
 
-    window.addEventListener('mouseup', () => { isDragging = false; });
+    window.addEventListener('mouseup', () => { activeIsDragging = false; });
 
     container.addEventListener('touchstart', (e) => {
         if (e.touches.length === 1) {
@@ -399,10 +403,10 @@ function renderPosts(posts) {
         const isOwner = currentUser && post.userName && post.userName.trim().toLowerCase() === currentUser.trim().toLowerCase();
         
         const card = document.createElement('div');
-        card.className = "bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col group active:scale-95 transition-all h-fit fade-in";
+        card.className = "bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col group h-fit fade-in";
         const postData = btoa(unescape(encodeURIComponent(JSON.stringify(post))));
         card.innerHTML = `
-            <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer" onclick="openLightboxFromBase64('${postData}')">
+            <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform duration-200" onclick="openLightboxFromBase64('${postData}')">
                 <img src="${post.imageData}" class="w-full h-full object-cover" loading="lazy">
             </div>
             <div class="p-3">
