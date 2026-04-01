@@ -484,7 +484,7 @@ async function handleLike(id) {
     try { 
         await fetch(GAS_WEB_APP_URL, { 
             method: 'POST', 
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action: 'like', id }) 
         }); 
         loadPosts(); 
@@ -499,7 +499,7 @@ async function deletePost(id) {
         try {
             const res = await fetch(GAS_WEB_APP_URL, { 
                 method: 'POST', 
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify({ action: 'delete', id }) 
             });
             const result = await res.json();
