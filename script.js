@@ -350,10 +350,18 @@ async function handleSubmit() {
         userName: currentUser, 
         comment,
         imageData: imageData,
-        timestamp: Date.now(), likes: editingPostId ? editingPostLikes : 0, startDate, endDate: endDate || '9999-12-31'
+        timestamp: Date.now(), 
+        likes: editingPostId ? editingPostLikes : 0, 
+        startDate, 
+        endDate: endDate || '9999-12-31'
     };
     try {
-        const res = await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action, post }) });
+        const res = await fetch(GAS_WEB_APP_URL, { 
+            method: 'POST', 
+            // GASへのCORSエラーを回避するためにtext/plainを使用
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action, post }) 
+        });
         const result = await res.json();
         if (result.status === 'success') {
             showMessage(editingPostId ? '更新しました' : '投稿しました', 'success');
@@ -472,12 +480,28 @@ function editPost(base64) {
     document.getElementById('submit-btn').textContent = "投稿を更新する";
 }
 
-async function handleLike(id) { try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'like', id }) }); loadPosts(); } catch (err) {} }
+async function handleLike(id) { 
+    try { 
+        await fetch(GAS_WEB_APP_URL, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'like', id }) 
+        }); 
+        loadPosts(); 
+    } catch (err) {
+        console.error('Like Error:', err);
+    } 
+}
+
 async function deletePost(id) {
     if (confirm('この投稿を削除しますか？')) {
         setLoading(true);
         try {
-            const res = await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', id }) });
+            const res = await fetch(GAS_WEB_APP_URL, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'delete', id }) 
+            });
             const result = await res.json();
             if (result.status === 'success') {
                 showMessage('削除しました', 'success');
