@@ -19,7 +19,7 @@ body {
     display: flex; 
     align-items: center; 
     justify-content: center; 
-    backdrop-blur: 4px;
+    backdrop-filter: blur(4px);
 }
 
 .fade-in { animation: fadeIn 0.3s ease-out; }
@@ -42,4 +42,10 @@ body {
     max-height: 100%;
     user-select: none;
     pointer-events: none;
+}
+
+/* サイドパネルのアニメーション設定 */
+#pc-side-panel {
+    transition: width 1s ease;
+    will-change: width;
 }

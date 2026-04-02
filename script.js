@@ -1,6 +1,9 @@
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz5lJlz9EU5b2rdfkWgCx6fPgLTcFJ1-5zcMu2rsDhwulaqAW0JLxHMp9sWP0CE3Hj1/exec'; 
 
 let currentUser = localStorage.getItem('gallery_user') || null;
+let allPosts = []; // 取得した全投稿を保持するメモリキャッシュ
+let currentActivePosts = []; // 現在画面に表示されている有効な投稿リスト
+let currentPostId = null; // 現在詳細表示中の投稿ID
 let selectedFile = null;
 let editingPostId = null;
 let editingPostLikes = 0;
@@ -11,7 +14,7 @@ const zoomStates = {
     'side-zoom-container': { scale: 1, translateX: 0, translateY: 0 }
 };
 
-let activeIsDragging = false;
+let activeDraggingContainerId = null; // 現在ドラッグ中のコンテナID
 let activeStartX, activeStartY;
 let initialPinchDistance = null;
 
@@ -28,9 +31,9 @@ window.onload = function() {
     setupZoomHandlers('side-zoom-container', 'side-lightbox-img', 'side-zoom-indicator');
     initSidePanelResizer();
 
-    // 1時間（3,600,000ミリ秒）ごとに自動リロード
+    // 1時間（3,600,000ミリ秒）ごとにデータを自動更新（ページリロードは行わない）
     setInterval(() => {
-        location.reload();
+        loadPosts();
     }, 3600000);
 };
 
@@ -194,6 +197,23 @@ function initEventListeners() {
     });
 }
 
+// 前後の投稿にナビゲートする関数
+function navigateToPost(direction) {
+    if (currentActivePosts.length === 0 || !currentPostId) return;
+    
+    const currentIndex = currentActivePosts.findIndex(p => p.id === currentPostId);
+    if (currentIndex === -1) return;
+
+    const nextIndex = currentIndex + direction;
+    if (nextIndex >= 0 && nextIndex < currentActivePosts.length) {
+        // スワイプ方向に応じたアニメーションクラスを決定
+        const animationClass = direction > 0 ? 'slide-from-right' : 'slide-from-left';
+        openLightbox(currentActivePosts[nextIndex], animationClass);
+    } else {
+        // リストの端に到達した際のフィードバック（任意）
+    }
+}
+
 function initSidePanelResizer() {
     const resizer = document.getElementById('panel-resizer');
     const sidePanel = document.getElementById('pc-side-panel');
@@ -201,6 +221,7 @@ function initSidePanelResizer() {
 
     resizer.addEventListener('mousedown', (e) => {
         isResizing = true;
+        sidePanel.style.transition = 'none'; // ドラッグ中はアニメーションを無効化
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
     });
@@ -219,6 +240,7 @@ function initSidePanelResizer() {
     window.addEventListener('mouseup', () => {
         if (isResizing) {
             isResizing = false;
+            sidePanel.style.transition = ''; // ドラッグ終了後にアニメーションを復元
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
                     // ドラッグ終了時にマーキーを再計算
@@ -250,6 +272,7 @@ function formatDateToYYYYMMDD(dateString) {
 function setupZoomHandlers(containerId, imgId, indicatorId) {
     const container = document.getElementById(containerId);
     const img = document.getElementById(imgId);
+    let startX = 0;
 
     const applyTransform = () => {
         const state = zoomStates[containerId];
@@ -271,27 +294,39 @@ function setupZoomHandlers(containerId, imgId, indicatorId) {
 
     container.addEventListener('mousedown', (e) => {
         const state = zoomStates[containerId];
-        activeIsDragging = true;
+        activeDraggingContainerId = containerId;
         activeStartX = e.clientX - state.translateX;
         activeStartY = e.clientY - state.translateY;
+        startX = e.clientX; // スワイプ開始位置
     });
 
     window.addEventListener('mousemove', (e) => {
-        if (!activeIsDragging) return;
+        if (activeDraggingContainerId !== containerId) return;
         const state = zoomStates[containerId];
         state.translateX = e.clientX - activeStartX;
         state.translateY = e.clientY - activeStartY;
         applyTransform();
     });
 
-    window.addEventListener('mouseup', () => { activeIsDragging = false; });
+    window.addEventListener('mouseup', (e) => {
+        if (activeDraggingContainerId === containerId) {
+            const diffX = startX - e.clientX;
+            // ズーム倍率が1のときのみ、一定以上のドラッグでスワイプと判定
+            if (zoomStates[containerId].scale === 1 && Math.abs(diffX) > 100) {
+                if (diffX > 0) navigateToPost(1);  // 左スワイプ -> 次へ
+                else navigateToPost(-1);           // 右スワイプ -> 前へ
+            }
+        }
+        activeDraggingContainerId = null;
+    });
 
     container.addEventListener('touchstart', (e) => {
         const state = zoomStates[containerId];
         if (e.touches.length === 1) {
-            activeIsDragging = true;
+            activeDraggingContainerId = containerId;
             activeStartX = e.touches[0].clientX - state.translateX;
             activeStartY = e.touches[0].clientY - state.translateY;
+            startX = e.touches[0].clientX;
         } else if (e.touches.length === 2) {
             initialPinchDistance = Math.hypot(
                 e.touches[0].clientX - e.touches[1].clientX,
@@ -303,7 +338,7 @@ function setupZoomHandlers(containerId, imgId, indicatorId) {
     container.addEventListener('touchmove', (e) => {
         e.preventDefault();
                 const state = zoomStates[containerId];
-                if (e.touches.length === 1 && activeIsDragging) {
+                if (e.touches.length === 1 && activeDraggingContainerId === containerId) {
                     state.translateX = e.touches[0].clientX - activeStartX;
                     state.translateY = e.touches[0].clientY - activeStartY;
         } else if (e.touches.length === 2) {
@@ -321,8 +356,15 @@ function setupZoomHandlers(containerId, imgId, indicatorId) {
         applyTransform();
     }, { passive: false });
 
-    container.addEventListener('touchend', () => {
-                activeIsDragging = false;
+    container.addEventListener('touchend', (e) => {
+        if (activeDraggingContainerId === containerId && e.changedTouches.length > 0) {
+            const diffX = startX - e.changedTouches[0].clientX;
+            if (zoomStates[containerId].scale === 1 && Math.abs(diffX) > 60) {
+                if (diffX > 0) navigateToPost(1);
+                else navigateToPost(-1);
+            }
+        }
+        activeDraggingContainerId = null;
         initialPinchDistance = null;
     });
 
@@ -432,9 +474,9 @@ async function loadPosts() {
     refreshIcon.classList.add('animate-spin');
     try {
         const res = await fetch(GAS_WEB_APP_URL);
-        const posts = await res.json();
+        allPosts = await res.json();
         const todayStr = new Date().toISOString().split('T')[0];
-        const activePosts = posts.filter(p => {
+        const activePosts = allPosts.filter(p => {
             const start = p.startDate || '0000-00-00';
             const end = p.endDate || '9999-12-31';
             // ログインしている場合は掲載開始前の項目も表示する
@@ -442,7 +484,8 @@ async function loadPosts() {
             const isNotExpired = todayStr <= end;
             return isNotExpired && (currentUser ? true : isStarted);
         });
-        renderPosts(activePosts.sort((a, b) => b.timestamp - a.timestamp));
+        currentActivePosts = activePosts.sort((a, b) => b.timestamp - a.timestamp);
+        renderPosts(currentActivePosts);
     } catch (err) { showMessage('読み込みに失敗しました', 'error'); }
     finally { refreshIcon.classList.remove('animate-spin'); }
 }
@@ -460,9 +503,8 @@ function renderPosts(posts) {
         
         const card = document.createElement('div');
         card.className = "bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col group h-fit fade-in";
-        const postData = btoa(unescape(encodeURIComponent(JSON.stringify(post))));
         card.innerHTML = `
-            <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform duration-200" onclick="openLightboxFromBase64('${postData}')">
+            <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform duration-200" onclick="openLightboxById('${post.id}')">
                 <img src="${post.imageData}" class="w-full h-full object-cover" loading="lazy">
             </div>
             <div class="p-3">
@@ -480,7 +522,7 @@ function renderPosts(posts) {
                     </button>
                     ${isOwner ? `
                         <div class="flex gap-1">
-                            <button onclick="editPost('${postData}')" class="text-slate-300 hover:text-indigo-600 p-1">
+                            <button onclick="editPostById('${post.id}')" class="text-slate-300 hover:text-indigo-600 p-1">
                                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                                 </svg>
@@ -503,8 +545,9 @@ function renderPosts(posts) {
     initIcons();
 }
 
-function editPost(base64) {
-    const post = JSON.parse(decodeURIComponent(escape(atob(base64))));
+function editPostById(id) {
+    const post = allPosts.find(p => p.id === id);
+    if (!post) return;
     editingPostId = post.id;
     editingPostLikes = post.likes || 0;
     
@@ -554,12 +597,13 @@ async function deletePost(id) {
     }
 }
 
-window.openLightboxFromBase64 = (base64) => {
-    const post = JSON.parse(decodeURIComponent(escape(atob(base64))));
-    openLightbox(post);
+window.openLightboxById = (id) => {
+    const post = allPosts.find(p => p.id === id);
+    if (post) openLightbox(post);
 };
 
-window.openLightbox = (post) => {
+window.openLightbox = (post, animationClass = 'fade-in') => {
+    currentPostId = post.id;
     const isPC = window.innerWidth >= 1024;
     
     // ズーム状態を初期化
@@ -574,8 +618,16 @@ window.openLightbox = (post) => {
         const detailView = document.getElementById('pc-detail-view');
         detailView.classList.remove('hidden');
         
+        const sidePanel = document.getElementById('pc-side-panel');
+        sidePanel.style.width = '50%';
+        
         const img = document.getElementById('side-lightbox-img');
         img.src = post.imageData;
+        // アニメーションをリセットして適用
+        img.classList.remove('fade-in', 'slide-from-right', 'slide-from-left');
+        void img.offsetWidth; // 強制リフロー
+        img.classList.add(animationClass);
+        
         img.style.transform = `translate(0px, 0px) scale(1)`;
         document.getElementById('side-zoom-indicator').textContent = '100%';
 
@@ -589,6 +641,11 @@ window.openLightbox = (post) => {
     const lb = document.getElementById('lightbox');
     const img = document.getElementById('lightbox-img');
     img.src = post.imageData;
+    
+    img.classList.remove('fade-in', 'slide-from-right', 'slide-from-left');
+    void img.offsetWidth;
+    img.classList.add(animationClass);
+
     img.style.transform = `translate(0px, 0px) scale(1)`;
     document.getElementById('zoom-indicator').textContent = '100%';
 
@@ -599,6 +656,23 @@ window.openLightbox = (post) => {
     document.body.style.overflow = 'hidden';
     initIcons();
     setTimeout(() => initMarquee(commentEl), 50);
+};
+
+window.closeSidePanel = () => {
+    const sidePanel = document.getElementById('pc-side-panel');
+    const placeholder = document.getElementById('pc-placeholder');
+    const detailView = document.getElementById('pc-detail-view');
+
+    // パネルの幅を元のサイズ（450px）に戻す
+    sidePanel.style.width = '450px';
+
+    // 表示の切り替え
+    detailView.classList.add('hidden');
+    placeholder.classList.remove('hidden');
+
+    // ズーム状態や内容のクリア（オプション）
+    const sideState = zoomStates['side-zoom-container'];
+    sideState.scale = 1; sideState.translateX = 0; sideState.translateY = 0;
 };
 
 window.closeLightbox = () => { 

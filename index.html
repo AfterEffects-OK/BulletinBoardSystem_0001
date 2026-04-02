@@ -149,6 +149,12 @@
                     <div class="bg-slate-900/70 backdrop-blur px-2 py-1 rounded-lg border border-white/10">
                         <span id="side-zoom-indicator" class="text-white text-[10px] font-bold">100%</span>
                     </div>
+                    <button onclick="closeSidePanel()" class="bg-slate-900/70 hover:bg-slate-800 text-white p-1 rounded-lg border border-white/10 transition-colors flex items-center justify-center pointer-events-auto">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
                 </div>
                 <div id="side-zoom-container" class="zoom-surface flex-grow bg-slate-50">
                     <img id="side-lightbox-img" src="" alt="Side preview" class="zoom-image shadow-xl transition-transform duration-75 ease-out">
