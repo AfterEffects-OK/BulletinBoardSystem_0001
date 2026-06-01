@@ -59,144 +59,38 @@
         </div>
     </header>
 
-    <main class="max-w-full mx-auto px-2 py-4 sm:px-4 flex flex-col lg:flex-row gap-6">
-        <div class="flex-1 min-w-0">
+    <main class="max-w-full mx-auto px-2 py-4 sm:px-4 flex flex-col lg:flex-row gap-6 h-[calc(100vh-60px)] overflow-hidden">
+        <div class="flex-1 min-w-0 overflow-y-auto">
             <section id="upload-section" class="mb-6 hidden fade-in">
                 <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden max-w-2xl mx-auto">
                     <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
                         <h2 class="font-bold flex items-center gap-2 text-slate-800">
-                            <svg class="w-5 h-5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle>
-                            </svg>
                             <span id="form-title">新規投稿</span>
                         </h2>
-                        <button onclick="toggleUploadSection()" class="p-2 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center">
-                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </button>
+                        <button onclick="toggleUploadSection()" class="p-2 bg-slate-100 rounded-full text-slate-500">×</button>
                     </div>
-                    <div class="p-5 space-y-5">
-                        <div id="drop-zone" class="relative aspect-video group cursor-pointer border-2 border-dashed border-slate-200 rounded-2xl transition-all flex flex-col items-center justify-center bg-slate-50 overflow-hidden">
-                            <input type="file" id="file-input" class="hidden" accept="image/*" capture="environment">
-                            <div id="preview-container" class="hidden absolute inset-0 bg-white">
-                                <img id="image-preview" class="w-full h-full object-contain" src="" alt="Preview">
-                                <button onclick="resetImage(event)" class="absolute top-3 right-3 bg-slate-900/70 text-white p-2 rounded-full backdrop-blur-md z-10 flex items-center justify-center">
-                                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                            <div id="drop-content" class="text-center p-4">
-                                <div class="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-3">
-                                    <svg class="w-6 h-6 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"></path><line x1="16" y1="5" x2="22" y2="5"></line><line x1="19" y1="2" x2="19" y2="8"></line><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
-                                    </svg>
-                                </div>
-                                <p class="text-sm font-bold text-slate-700">写真を撮る・選ぶ・またはドロップ</p>
-                                <p class="text-[10px] text-slate-400 mt-1">最大 2MB まで</p>
-                            </div>
-                        </div>
-                        
-                        <div class="space-y-4">
-                            <div>
-                                <p id="display-user-name" class="text-[10px] font-black text-indigo-600 uppercase mb-1 ml-1"></p>
-                                <textarea id="comment-input" rows="3" placeholder="今何してる？" class="w-full px-4 py-3 text-[30px] font-bold bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none placeholder:text-slate-300 leading-tight" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">掲示開始</label>
-                                    <input type="date" id="start-date" class="w-full px-3 py-3 text-xs bg-slate-50 rounded-xl outline-none border-none">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">掲示終了</label>
-                                    <input type="date" id="end-date" class="w-full px-3 py-3 text-xs bg-slate-50 rounded-xl outline-none border-none">
-                                </div>
-                            </div>
-                            <button id="submit-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 active:scale-[0.97] transition-all">
-                                投稿を公開する
-                            </button>
-                        </div>
                     </div>
-                </div>
             </section>
 
             <section id="gallery-container">
-                <div id="post-grid" class="grid grid-cols-2 md:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 sm:gap-6 justify-center"></div>
-                <div id="empty-state" class="hidden py-32 text-center">
-                    <div class="bg-white p-8 rounded-3xl shadow-sm inline-block">
-                        <svg class="w-10 h-10 text-slate-200 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M2 20h20"></path><path d="M2 4h20"></path><path d="M10 8v8"></path><path d="M14 8v8"></path><path d="M6 8v8"></path><path d="M18 8v8"></path>
-                        </svg>
-                        <h3 class="text-slate-400 text-sm font-bold">表示できる投稿はありません</h3>
-                    </div>
-                </div>
+                <div id="post-grid" class="grid grid-cols-2 md:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 sm:gap-6 justify-center"></div>
             </section>
         </div>
 
-        <aside id="pc-side-panel" class="hidden lg:block shrink-0 sticky top-20 h-[calc(100vh-6rem)] relative bg-white rounded-3xl" style="width: 450px;">
-            <div id="panel-resizer" class="absolute -left-4 top-0 bottom-0 w-8 cursor-col-resize group z-50 flex items-center justify-center">
-                <div class="w-1 h-24 bg-slate-200 group-hover:bg-indigo-400 transition-colors rounded-full shadow-sm"></div>
+        <aside id="pc-side-panel" class="hidden lg:block shrink-0 sticky top-20 h-[calc(100vh-6rem)] relative bg-white rounded-3xl transition-all duration-300 ease-in-out border border-slate-200 shadow-sm" style="width: 60px;">
+            <div id="panel-resizer" class="absolute -left-4 top-0 bottom-0 w-8 cursor-col-resize z-50 flex items-center justify-center">
+                <div class="w-1 h-24 bg-slate-200 rounded-full"></div>
             </div>
-            <div id="pc-placeholder" class="h-full border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center text-slate-400 bg-white">
+            <div id="pc-placeholder" class="h-full flex items-center justify-center text-slate-400">
+                <span class="text-[10px] uppercase font-bold rotate-90 whitespace-nowrap">DETAIL</span>
             </div>
-            <div id="pc-detail-view" class="hidden h-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col relative">
-                <div class="absolute top-4 right-4 z-10 flex gap-2">
-                    <div class="bg-slate-900/70 backdrop-blur px-2 py-1 rounded-lg border border-white/10">
-                        <span id="side-zoom-indicator" class="text-white text-[10px] font-bold">100%</span>
-                    </div>
-                    <button onclick="closeSidePanel()" class="bg-slate-900/70 hover:bg-slate-800 text-white p-1 rounded-lg border border-white/10 transition-colors flex items-center justify-center pointer-events-auto">
-                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
+            <div id="pc-detail-view" class="hidden h-full overflow-hidden flex flex-col relative">
                 <div id="side-zoom-container" class="zoom-surface flex-grow bg-slate-50">
-                    <img id="side-lightbox-img" src="" alt="Side preview" class="zoom-image shadow-xl transition-transform duration-75 ease-out">
-                </div>
-                <div class="p-6 bg-white border-t border-slate-100">
-                    <div class="overflow-hidden">
-                        <p id="side-lightbox-comment" class="text-slate-800 text-[30px] font-bold leading-tight inline-block whitespace-nowrap"></p>
-                    </div>
+                    <img id="side-lightbox-img" src="" alt="Side preview" class="zoom-image">
                 </div>
             </div>
         </aside>
     </main>
-
-    <button id="mobile-fab" onclick="toggleUploadSection()" class="hidden fixed bottom-6 right-6 w-16 h-16 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition-transform">
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-    </button>
-
-    <div id="lightbox" class="fixed inset-0 bg-black/95 z-[100] hidden flex flex-col overflow-hidden select-none">
-        <div class="absolute top-0 inset-x-0 p-4 flex justify-between items-center z-[120] pointer-events-none">
-            <div class="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
-                <span id="zoom-indicator" class="text-white text-[10px] font-bold tracking-widest">100%</span>
-            </div>
-            <button onclick="closeLightbox()" class="text-white bg-white/20 hover:bg-white/30 p-3 rounded-full pointer-events-auto backdrop-blur-md active:scale-90 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
-        </div>
-        
-        <div id="zoom-container" class="zoom-surface flex-grow">
-            <img id="lightbox-img" src="" alt="Full size" class="zoom-image shadow-2xl transition-transform duration-75 ease-out">
-        </div>
-
-        <div class="absolute bottom-0 inset-x-0 p-8 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none">
-            <div class="max-w-4xl mx-auto text-center overflow-hidden">
-                <div class="overflow-hidden">
-                    <p id="lightbox-comment" class="text-white text-[30px] mt-2 font-bold leading-tight drop-shadow-lg inline-block whitespace-nowrap"></p>
-                </div>
-                <p class="text-white/40 text-[10px] mt-4 font-bold">スクロールまたはピンチで拡大縮小 / ドラッグで移動</p>
-            </div>
-        </div>
-    </div>
 
     <script src="script.js"></script>
 </body>
