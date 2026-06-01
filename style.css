@@ -49,3 +49,8 @@ body {
     transition: width 1s ease;
     will-change: width;
 }
+
+/* style.css の末尾に追記 */
+#pc-side-panel {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
