@@ -54,3 +54,21 @@ body {
 #pc-side-panel {
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* style.css に追記 */
+#post-grid {
+    display: grid;
+    /* 画面の高さからヘッダー分などを引いた残りの高さを利用 */
+    max-height: calc(100vh - 120px); 
+    overflow-y: auto; /* 収まらない場合のみ内部でスクロール */
+    padding-right: 8px; /* スクロールバー用の余白 */
+}
+
+/* スクロールバーの見た目を整える（お好みで） */
+#post-grid::-webkit-scrollbar {
+    width: 6px;
+}
+#post-grid::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 10px;
+}
